@@ -54,22 +54,22 @@
 
 	data<-df
 
-##reformat Date field
+## Reformat Date field
 	data$Date<-as.Date(data$DATE, "%Y-%m-%d")
 	maxdate<-as.Date(max(data$Date))
 
-##summarize to one row per date
+## Summarize to one row per date
 	data<-summaryBy(GBV~REGION+Date, data=data, FUN=sum)
 	n<-(nrow(data)/3)-1
 
-##number of days to predict
+## Number of days to predict
 	d<-200
 
-#add empty rows to dataframe for next 90 days
+## Add empty rows to dataframe for next 90 days
 	newrows<-data.frame(REGION=c(rep("EAN Americas",d),rep("EAN - APAC",d),rep("EAN - Europe",d)),Date=as.Date(rep((max(data$Date)+1):(max(data$Date)+d),3),origin="1970-01-01"),GBV.sum=rep(0,(d*3)))
 	data <- rbind(newrows,data)
 
-##create binary variables for seasonality
+## Create binary variables for seasonality
 	data$weekday<-weekdays(data$Date)
 	data$month<-months(data$Date)
 	weekdays = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
@@ -88,11 +88,11 @@
 
 	data <- data.frame(data,day.matrix,month.matrix)
 
-##sort data, create lag variable and trend
+## Sort data, create lag variable and trend
 	data.sort<-data[order(data$REGION, data$Date),]
 	data.sort$GBV<-c(data.sort$GBV.sum[-1], NA)
 	data.sort$TREND<-c(rep(1:(nrow(data)/3),3))
-## compute model
+## Compute model
 		model.build <- function(time,row,data,region,name.file){
 		sub.dat <- subset(data,REGION==region)
 		model <- lm(log(GBV)~log(GBV.sum)+Trend+MON+TUES+WED+THU+FRI+SAT+JAN+FEB+MAR+APR+MAY+JUN+JUL+AUG+SEP+OCT+NOV, 	data=sub.dat[1:row,])
@@ -101,7 +101,7 @@
 	dput(model, name.file)
 		}
 
-## create coefficients and residuals and save in working directory
+## Create coefficients and residuals and save in working directory
 
 	model.build(d,n,data.sort,"EAN - Europe","ean.model")
 	model.build(d,n,data.sort,"EAN Americas","amer.model")
