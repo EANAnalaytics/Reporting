@@ -54,22 +54,22 @@
 
 	data<-df
 
-#reformat Date field
+##reformat Date field
 	data$Date<-as.Date(data$DATE, "%Y-%m-%d")
 	maxdate<-as.Date(max(data$Date))
 
-#summarize to one row per date
+##summarize to one row per date
 	data<-summaryBy(GBV~REGION+Date, data=data, FUN=sum)
 	n<-(nrow(data)/3)-1
 
-#number of days to predict
+##number of days to predict
 	d<-200
 
 #add empty rows to dataframe for next 90 days
 	newrows<-data.frame(REGION=c(rep("EAN Americas",d),rep("EAN - APAC",d),rep("EAN - Europe",d)),Date=as.Date(rep((max(data$Date)+1):(max(data$Date)+d),3),origin="1970-01-01"),GBV.sum=rep(0,(d*3)))
 	data <- rbind(newrows,data)
 
-#create binary variables for seasonality
+##create binary variables for seasonality
 	data$weekday<-weekdays(data$Date)
 	data$month<-months(data$Date)
 	weekdays = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
@@ -88,7 +88,7 @@
 
 	data <- data.frame(data,day.matrix,month.matrix)
 
-#sort data, create lag variable and trend
+##sort data, create lag variable and trend
 	data.sort<-data[order(data$REGION, data$Date),]
 	data.sort$GBV<-c(data.sort$GBV.sum[-1], NA)
 	data.sort$TREND<-c(rep(1:(nrow(data)/3),3))
