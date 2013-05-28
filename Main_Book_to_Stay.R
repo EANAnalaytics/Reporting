@@ -1,12 +1,12 @@
-setwd("~/Desktop/Forecast")
+setwd("~/Reporting/Trading Report/Stay Forecast Method/Book to Stay Method")
 require("forecast")
 require(RJDBC)
 require("doBy")
-jcc = JDBC("com.ibm.db2.jcc.DB2Driver","../../Documents/DB2Driver/db2jcc4.jar")
+jcc = JDBC("com.ibm.db2.jcc.DB2Driver","C:/Program Files (x86)/IBM/SQLLIB/java/db2jcc4.jar")
 conn = dbConnect(jcc,
                  "jdbc:db2://che-db2edw01.idx.expedmz.com:50001/EXPPRD01",
-                 user="USERNAME",
-                 password="PASSWORD")   
+                 user=USERNAME,
+                 password=PASSWORD)   
 
 rs = dbSendQuery(conn, 
                  
@@ -73,7 +73,7 @@ n<-(nrow(data)/3)-1
 #number of days to predict
 d<-200
 
-#add empty rows to dataframe for next 90 days
+#add empty rows to dataframe for next d days
 newrows<-data.frame(REGION=c(rep("EAN Americas",d),rep("EAN - APAC",d),rep("EAN - Europe",d)),Date=as.Date(rep((max(data$Date)+1):(max(data$Date)+d),3),origin="1970-01-01"),GBV.sum=rep(0,(d*3)))
 data <- rbind(newrows,data)
 
@@ -355,6 +355,11 @@ write.table(unadjoutput, file = "unadjusted for fpa.csv", sep = ",", col.names =
 #cleanup file and output
 outputfinal <- subset(output4, select = c("REGION","Month.x.x","StayType","GBV.sum","GBVUpper.sum","GBVLower.sum","MC2","MCUpper","MCLower","GBVnew","GBVnewUpper","GBVnewLower","MCnew","MCnewUpper","MCnewLower") )
 names(outputfinal)<-c("Region", "Month", "Stay Type", "GBV", "GBVUpper","GBVLower","MC", "MCUpper","MCLower","GBVadj","GBVadjUpper","GBVadjLower","MCadj","MCadjUpper","MCadjLower")
+outputfinal$Region<-as.character(outputfinal$Region)
+outputfinal$Region[outputfinal$Region=="EAN Americas"]<-"AMER"
+outputfinal$Region[outputfinal$Region=="EAN - Europe"]<-"EMEA"
+outputfinal$Region[outputfinal$Region=="EAN - APAC"]<-"APAC"
+
 outputfinal$Createdate<-Sys.Date()
 
 filename<-paste(paste("BookedMonthlyForecast",Sys.Date(),sep=" "),".csv",sep="")
