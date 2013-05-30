@@ -27,7 +27,7 @@ rs = dbSendQuery(conn,
                  AND
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_4_NAME  IN  ( 'Expedia Affiliate Network'  )
                  AND DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_TPID  NOT IN  ( 30029, 30031  )
-                 AND DM.V_BUSINESS_PARTNR_DIM.PARNT_BUSINESS_PARTNR_ID  <>  306895
+ 
                  )
                  GROUP BY
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_5_NAME, 
@@ -52,7 +52,7 @@ rs = dbSendQuery(conn,
                  AND
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_4_NAME  IN  ( 'Expedia Affiliate Network'  )
                  AND DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_TPID  NOT IN  ( 30029, 30031  )
-                 AND DM.V_BUSINESS_PARTNR_DIM.PARNT_BUSINESS_PARTNR_ID  <>  306895
+ 
                  )
                  GROUP BY
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_5_NAME, 
