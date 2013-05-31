@@ -348,7 +348,7 @@ PL.adjust<-read.table("unadjusted for fpa.txt", sep=",",header=TRUE)
 staydata.sort$StayType<-0
 staydata.sort$StayType <- ifelse(staydata.sort$Date <= maxdate, "Stayed", "Booked Not Stayed" )
 #staydata.sort$StayType<-sapply(1:nrow(staydata.sort),function(x) if (staydata.sort$Date[x]<=maxdate) {staydata.sort$StayType[x]="Stayed"} else {staydata.sort$StayType[x]="Booked Not Stayed"})
-staydata.sort$StayType
+#staydata.sort$StayType
 #calculate Agency Margin
 staydata.sort$Monthtrunc<-format(staydata.sort$Date,format="%b")
 staydata.sort2<-merge(staydata.sort,PL.assump, by.x = c("Monthtrunc","REGION"), by.y=c("Month","Region"),all.x=T)
@@ -405,16 +405,18 @@ data3<-summaryBy(GBV.sum~Month2+REGION, data=data2013, FUN=sum)
 
 #Profit Merge
 GBVoutputmonth<-summaryBy(GBV+GBVUpper+GBVLower+Margin+MarginUpper+MarginLower~Month2+Month+REGION+StayType, data=GBVoutput, FUN=sum)
-outputadj<-merge(GBVoutputmonth,PL.adjust, by.x = c("Month2","REGION"), by.y=c("Month2","Region"),all.x=T)
-output<-merge(outputadj,PL.assump, by.x = c("Month2","REGION"), by.y=c("Month","Region"),all.x=T)
+outputadj<-merge(GBVoutputmonth,PL.adjust, by.x = c("Month2","REGION"), by.y=c("Month2","Region"),all.x=T,incomparables=0)
+outputadj$GBVadj<-ifelse(is.na(outputadj$GBVadj)==TRUE,0,outputadj$GBVadj)
+outputadj$Mcadj<-ifelse(is.na(outputadj$Mcadj)==TRUE,0,outputadj$Mcadj)
+output<-merge(outputadj,PL.assump, by.x = c("Month2","REGION"), by.y=c("Month","Region"),all.x=T,incomparables=0)
 output$count<-1
 Monthcount<-summaryBy(count~Month.x+Month2+REGION, data=output, FUN=sum)
-output2<-merge(output,Monthcount, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T)
-output3<-merge(output2,data3, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T)
+output2<-merge(output,Monthcount, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T,incomparables=0)
+output3<-merge(output2,data3, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T,incomparables=0)
 
 #weight abs values by GBV.sum
 weights<-summaryBy(GBV.sum~Month2+REGION, data=output3, FUN=sum)
-output4<-merge(output3,weights, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T)
+output4<-merge(output3,weights, by.x = c("Month2","REGION"), by.y=c("Month2","REGION"),all.x=T,incomparables=0)
 output4$GBVweight<-output4$GBV.sum/output4$GBV.sum.sum.y
 output4$bkgnew<-output4$Bkg*output4$GBVweight
 output4$ORMnew<-output4$ORM*output4$GBVweight
@@ -442,6 +444,10 @@ unadjoutput2 <- merge(subset(unadjoutput,select=c("REGION","Month.x.y","GBV.sum.
 
 #unadjoutput2$Month.x.y<-as.Date(unadjoutput2$Month.x.y)
 names(unadjoutput2)<-c("Region", "Month", "GBV", "MC","GBVadj", "Mcadj")
+
+unadjoutput2$GBVadj<-ifelse(is.na(unadjoutput2$GBVadj)==TRUE,0,unadjoutput2$GBVadj)
+unadjoutput2$Mcadj<-ifelse(is.na(unadjoutput2$Mcadj)==TRUE,0,unadjoutput2$Mcadj)
+
 write.table(unadjoutput2, file = "unadjusted for fpa.txt", sep = ",", col.names = T,row.names = F)
 
 #cleanup file and output
@@ -456,6 +462,7 @@ outputfinal$Createdate<-Sys.Date()
 
 filename<-paste(paste("BookedMonthlyForecast",Sys.Date(),sep=" "),".csv",sep="")
 write.table(outputfinal, file = filename, sep = ",", col.names = T,row.names = F)
+
 
 
 
