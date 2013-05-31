@@ -2,6 +2,7 @@ setwd("~/Reporting/Trading Report/Stay Forecast Method/Book to Stay Method")
 require("forecast")
 require(RJDBC)
 require("doBy")
+print ("Connecting to Db2")
 jcc = JDBC("com.ibm.db2.jcc.DB2Driver","C:/Program Files (x86)/IBM/SQLLIB/java/db2jcc4.jar")
 conn = dbConnect(jcc,
                  "jdbc:db2://che-db2edw01.idx.expedmz.com:50001/EXPPRD01",
@@ -21,13 +22,13 @@ rs = dbSendQuery(conn,
                  INNER JOIN DM.V_BUSINESS_PARTNR_DIM ON (DM.V_ORDER_TRANS_FACT.BUSINESS_PARTNR_KEY=DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_KEY)                
                  WHERE
                  (
-                 ( ( DM.V_TRANS_DATE_DIM.TRANS_DATE ) BETWEEN (Current Date - 24 months) AND (Current Date)
+                 ( ( DM.V_TRANS_DATE_DIM.TRANS_DATE ) BETWEEN (Current Date - 32 months) AND (Current Date)
                  
                  )
                  AND
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_4_NAME  IN  ( 'Expedia Affiliate Network'  )
                  AND DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_TPID  NOT IN  ( 30029, 30031  )
- 
+
                  )
                  GROUP BY
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_5_NAME, 
@@ -46,13 +47,13 @@ rs = dbSendQuery(conn,
                  INNER JOIN DM.V_BUSINESS_PARTNR_DIM ON (DM.V_ORDER_TRANS_FACT_ARCHV.BUSINESS_PARTNR_KEY=DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_KEY)
                  WHERE
                  (
-                 ( ( DM.V_TRANS_DATE_DIM.TRANS_DATE ) BETWEEN (Current Date - 24 months) AND (Current Date)
+                 ( ( DM.V_TRANS_DATE_DIM.TRANS_DATE ) BETWEEN (Current Date - 32 months) AND (Current Date)
                  
                  )
                  AND
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_4_NAME  IN  ( 'Expedia Affiliate Network'  )
                  AND DM.V_BUSINESS_PARTNR_DIM.BUSINESS_PARTNR_TPID  NOT IN  ( 30029, 30031  )
- 
+
                  )
                  GROUP BY
                  DM.V_OPER_UNIT_DIM.OPER_UNIT_LVL_5_NAME, 
@@ -75,11 +76,11 @@ d<-200
 
 #add empty rows to dataframe for next d days
 newrows<-data.frame(REGION=c(rep("EAN Americas",d),rep("EAN - APAC",d),rep("EAN - Europe",d)),Date=as.Date(rep((max(data$Date)+1):(max(data$Date)+d),3),origin="1970-01-01"),GBV.sum=rep(0,(d*3)))
-data <- rbind(newrows,data)
+data2 <- rbind(newrows,data)
 
 #create binary variables for seasonality
-data$weekday<-weekdays(data$Date)
-data$month<-months(data$Date)
+data2$weekday<-weekdays(data2$Date)
+data2$month<-months(data2$Date)
 weekdays = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
 month=c("January","February","March","April","May","June","July","August","September","October","November")
 
@@ -89,22 +90,22 @@ createid = function(vector,id) {
 }
 
 
-day.matrix <- sapply(weekdays,function(x) createid(data$weekday,x))
+day.matrix <- sapply(weekdays,function(x) createid(data2$weekday,x))
 dimnames(day.matrix)[[2]] <- c("MON","TUES","WED","THU","FRI","SAT")
-month.matrix <- sapply(month,function(x) createid(data$month,x))
+month.matrix <- sapply(month,function(x) createid(data2$month,x))
 dimnames(month.matrix)[[2]] <- c("JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV") 
 
-data <- data.frame(data,day.matrix,month.matrix)
+data2 <- data.frame(data2,day.matrix,month.matrix)
 
 #sort data, create lag variable and trend
-data.sort<-data[order(data$REGION, data$Date),]
+data.sort<-data2[order(data2$REGION, data2$Date),]
 data.sort$GBV<-c(data.sort$GBV.sum[-1], NA)
-data.sort$TREND<-c(rep(1:(nrow(data)/3),3))
+data.sort$TREND<-c(rep(1:(nrow(data2)/3),3))
 
 
 #This is a global function apply regression by region
 reg.func <- function(data,region,time,row){
-	
+  print ("Inside regression by region")	
 
 
 	#This creates a matrix for the prdictions
@@ -147,7 +148,87 @@ output.amer <- amer$models
 apac <- reg.func(data.sort,"EAN - APAC",d,n)
 output.apac <- apac$models
 
+print ("creating recent trading adjustments")
+##Create recent Trading Adjustments
+#create binary variables for seasonality
+data$weekday<-weekdays(data$Date)
+data$month<-months(data$Date)
 
+createid = function(vector,id) {
+  ifelse(vector==id,1,0)
+}
+
+
+day.matrix <- sapply(weekdays,function(x) createid(data$weekday,x))
+dimnames(day.matrix)[[2]] <- c("MON","TUES","WED","THU","FRI","SAT")
+month.matrix <- sapply(month,function(x) createid(data$month,x))
+dimnames(month.matrix)[[2]] <- c("JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV") 
+
+data <- data.frame(data,day.matrix,month.matrix)
+
+#sort data, create lag variable and trend
+data.sortadj<-data[order(data$REGION, data$Date),]
+data.sortadj$GBV<-c(data.sortadj$GBV.sum[-1], NA)
+data.sortadj$TREND<-c(rep(1:(nrow(data)/3),3))
+
+
+nadj<-(nrow(data.sortadj)/3)-15
+dadj<-15
+
+#This is a global function apply regression by region
+reg.funcadj <- function(data,region,time,row){
+  
+  
+  
+  #This creates a matrix for the prdictions
+  create.matrix <- function(time,row,data){
+    dim = seq((row+1),(row+time))
+    Intercept =  rep(1,time)
+    GBVlag = c(log(data$GBV[row]),rep(0,(time-1)))
+    days = cbind(data$TREND,data$MON,data$TUE,data$WED,data$THU,data$FRI,data$SAT)[dim,]
+    months = cbind(data$JAN,data$FEB,data$MAR,data$APR,data$MAY,data$JUN,data$JUL,data$AUG,data$SEP,data$OCT,data$NOV)[dim,]
+    
+    
+    cbind(Intercept,GBVlag,days,months)
+    
+    
+  }
+  
+  #Apply the regression model to the matrix for prediction
+  model.apply <- function(time,model,data) {
+    mod <- function(x){model$coefficients%*%x}
+    sapply(1:(time-1), function(y) data[y+1,2] <<- mod(data[y,]))
+    error=2*sd(model$residuals)
+    GBVUpper =  data[,2]+error
+    GBVLower = data[,2]-error
+    data.frame(data,GBVUpper,GBVLower)
+  }
+  
+  #subset data and create linear models
+  sub.dat <- head(subset(data,REGION==region),n)
+  model <- lm(log(GBV)~log(GBV.sum)+TREND+MON+TUES+WED+THU+FRI+SAT+JAN+FEB+MAR+APR+MAY+JUN+JUL+AUG+SEP+OCT+NOV, data=sub.dat[1:row,])
+  mat.dat <- create.matrix(time,row,subset(data,REGION==region))
+  list(models=model.apply(time,model,mat.dat),regions=mat.dat)
+  
+  
+}
+
+emeaadj <- reg.funcadj(data.sortadj,"EAN - Europe",dadj,nadj)
+output.emeaadj <- emeaadj$models
+ameradj <- reg.funcadj(data.sortadj,"EAN Americas",dadj,nadj)
+output.ameradj <- ameradj$models
+apacadj <- reg.funcadj(data.sortadj,"EAN - APAC",dadj,nadj)
+output.apacadj <- apacadj$models
+
+output.emeaadj$GBVActual<-log(subset(data.sortadj, REGION=="EAN - Europe")$GBV.sum[((nadj+1):(nadj+dadj))])
+emea.adj<-mean(exp(tail(output.emeaadj$GBVActual,dadj-1))-exp(tail(output.emeaadj$GBVlag,dadj-1)))
+output.ameradj$GBVActual<-log(subset(data.sortadj, REGION=="EAN Americas")$GBV.sum[((nadj+1):(nadj+dadj))])
+amer.adj<-mean(exp(tail(output.ameradj$GBVActual,dadj-1))-exp(tail(output.ameradj$GBVlag,dadj-1)))
+output.apacadj$GBVActual<-log(subset(data.sortadj, REGION=="EAN - APAC")$GBV.sum[((nadj+1):(nadj+dadj))])
+apac.adj<-mean(exp(tail(output.apacadj$GBVActual,dadj-1))-exp(tail(output.apacadj$GBVlag,dadj-1)))
+##adjustment end
+
+print ("plotting booking estimates")
 #plot booking estimates
 ts.plot(exp(output.emea[,2]))
 ts.plot(exp(output.amer[,2]))
@@ -158,12 +239,12 @@ timing<-read.table("Timingcard.csv", sep=",",header=TRUE)
 
 #calculate stayed GBV
 
-create.data <- function(time,dat.two,index){
+create.data <- function(time,dat.two,index,adj){
 	dat.one = matrix(data=0,nrow=time,ncol=time)
 	
 	create.nbns <- function(x,time,dat.one,dat.two,index) {
 
-			exp(dat.two[x,index])*timing$Pct.Total[1:(time-x+1)]
+			(exp(dat.two[x,index])+adj)*timing$Pct.Total[1:(time-x+1)]
 		}
 	
 	store <- sapply(1:time,function(x) dat.one[x,x:d] <<- create.nbns(x,time,dat.one,dat.two,index))
@@ -172,19 +253,19 @@ create.data <- function(time,dat.two,index){
 
 
 
-emea.nbns <- create.data(d,output.emea,2)
-emea.nbnsupper <- create.data(d,output.emea,21)
-emea.nbnslower <- create.data(d,output.emea,22)
+emea.nbns <- create.data(d,output.emea,2,emea.adj)
+emea.nbnsupper <- create.data(d,output.emea,21,emea.adj)
+emea.nbnslower <- create.data(d,output.emea,22,emea.adj)
 
 
-amer.nbns <- create.data(d,output.amer,2)
-amer.nbnsupper <- create.data(d,output.amer,21)
-amer.nbnslower <- create.data(d,output.amer,22)
+amer.nbns <- create.data(d,output.amer,2,amer.adj)
+amer.nbnsupper <- create.data(d,output.amer,21,amer.adj)
+amer.nbnslower <- create.data(d,output.amer,22,amer.adj)
 
 
-apac.nbns <- create.data(d,output.apac,2)
-apac.nbnsupper <- create.data(d,output.apac,21)
-apac.nbnslower <- create.data(d,output.apac,22)
+apac.nbns <- create.data(d,output.apac,2,apac.adj)
+apac.nbnsupper <- create.data(d,output.apac,21,apac.adj)
+apac.nbnslower <- create.data(d,output.apac,22,apac.adj)
 
 
 #Function to create data frame by region
@@ -200,7 +281,7 @@ nbns<-rbind(emea,amer,apac)
 nbns$StayType<-"Not Booked Not Stayed"
 write.table(nbns,"amendTest.txt")
 
-
+print ("stay data query")
 #Bring in Stay Data
 
 rs = dbSendQuery(conn, 
@@ -249,11 +330,18 @@ names(stay.data)<-c("GBV", "MARGIN", "REGION", "BMODEL", "DATE")
 stay.data$Date<-as.Date(stay.data$DATE, "%Y-%m-%d")
 staydata.sort<-stay.data[order(stay.data$REGION, stay.data$Date),]
 
-
+print ("Rest of PL and adjustments")
 #bring in Rest of P&L assumptions and adjustments
 PL.assump<-read.table("RestofPL.csv", sep=",",header=TRUE)
-PL.adjust<-read.table("unadjusted for fpa.csv", sep=",",header=TRUE)
-PL.adjust$Month2<-format(as.Date(as.character(PL.adjust$Month),"%Y-%m-%d"),format="%b")
+PL.adjust<-read.table("unadjusted for fpa.txt", sep=",",header=TRUE)
+#PL.adjust$Month3<-as.Date(PL.adjust$Month,"%d/%m/%Y")
+# PL.adjust$Month = as.Date(as.character(PL.adjust$Month,"%Y-%m-%d")) # TESTING
+#if(is.na(format(as.Date(as.character(PL.adjust$Month3[1]),"%Y-%m-%d"),format="%b"))==TRUE) {
+  PL.adjust$Month2<-format(as.Date(as.character(PL.adjust$Month),"%Y-%m-%d"),format="%b")
+#} else{PL.adjust$Month2<-format(as.Date(as.character(PL.adjust$Month3),"%Y-%m-%d"),format="%b") }
+  
+  
+
   
 
 #label stay or book not stay
@@ -289,7 +377,7 @@ names(staydata.sort2)<-c("REGION", "Date", "StayType", "GBV", "GBVUpper","GBVLow
 nbns2<-summaryBy(GBV+GBVUpper+GBVLower+Margin+MarginUpper+MarginLower~REGION+Date+StayType, data=nbns2, FUN=sum)
 names(nbns2)<-c("REGION", "Date", "StayType",  "GBV", "GBVUpper","GBVLower","Margin","MarginUpper","MarginLower")
 GBVoutput<-rbind(nbns2,staydata.sort2)
-GBVoutput$Month<-format(GBVoutput$Date,format="%Y-%m-1")
+GBVoutput$Month<-format(GBVoutput$Date,format="%Y-%m-01")
 GBVoutput$Month2<-format(GBVoutput$Date,format="%b")
 
 #summarize by month **test
@@ -303,13 +391,13 @@ bookedoutput.amer<-data.frame(REGION=rep("EAN Americas",d),Date=as.Date(c((maxda
 bookedoutput.apac<-data.frame(REGION=rep("EAN - APAC",d),Date=as.Date(c((maxdate+1):(maxdate+d)),origin="1970-01-01"),GBV=exp(output.apac[,2]))
 
 bookedoutput<-rbind(bookedoutput.emea,bookedoutput.amer,bookedoutput.apac)
-data2<-data
+data2<-data2
 for(i in 1:nrow(data2))
 {
   data2$GBV.sum[i]<-if(data2$Date[i]>maxdate) {bookedoutput$GBV[bookedoutput$REGION==data2$REGION[i]&bookedoutput$Date==data2$Date[i]]} else {
     data2$GBV.sum[i]}
 }
-data2$Month<-format(data2$Date,format="%Y-%m-1")
+data2$Month<-format(data2$Date,format="%Y-%m-01")
 data2$Month2<-format(data2$Date,format="%b")
 data2$Year<-format(data2$Date,format="%Y")
 data2013<- subset(data2, Year>= format(maxdate,format="%Y") )
@@ -346,11 +434,15 @@ output4$MCnewLower<-output4$MCLower+output4$MCadjnew
 
 #output file for jeremy
 unadjoutput<-summaryBy(GBV.sum+MC2~REGION+Month.x.y, data=output4, FUN=sum)
-unadjoutput$GBVadj<-PL.adjust$GBVadj
-unadjoutput$Mcadj<-PL.adjust$Mcadj
-unadjoutput$Month.x.y<-as.Date(unadjoutput$Month.x.y)
-names(unadjoutput)<-c("Region", "Month", "GBV", "MC","GBVadj", "Mcadj")
-write.table(unadjoutput, file = "unadjusted for fpa.csv", sep = ",", col.names = T,row.names = F)
+unadjoutput$GBVadj<-0
+unadjoutput$Mcadj<-0
+
+unadjoutput2 <- merge(subset(unadjoutput,select=c("REGION","Month.x.y","GBV.sum.sum","MC2.sum")),
+            subset(PL.adjust,select=c("Region","Month","GBVadj","Mcadj")),by.x=c("REGION","Month.x.y"),by.y=c("Region","Month"),all.x=TRUE,incomparables=0)
+
+#unadjoutput2$Month.x.y<-as.Date(unadjoutput2$Month.x.y)
+names(unadjoutput2)<-c("Region", "Month", "GBV", "MC","GBVadj", "Mcadj")
+write.table(unadjoutput2, file = "unadjusted for fpa.txt", sep = ",", col.names = T,row.names = F)
 
 #cleanup file and output
 outputfinal <- subset(output4, select = c("REGION","Month.x.x","StayType","GBV.sum","GBVUpper.sum","GBVLower.sum","MC2","MCUpper","MCLower","GBVnew","GBVnewUpper","GBVnewLower","MCnew","MCnewUpper","MCnewLower") )
@@ -364,7 +456,6 @@ outputfinal$Createdate<-Sys.Date()
 
 filename<-paste(paste("BookedMonthlyForecast",Sys.Date(),sep=" "),".csv",sep="")
 write.table(outputfinal, file = filename, sep = ",", col.names = T,row.names = F)
-
 
 
 
