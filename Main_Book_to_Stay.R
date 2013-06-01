@@ -273,9 +273,9 @@ create.region.frame <- function(region,date,time,data.one,data.two,data.three,or
 	data.frame(REGION=rep(region,time),Date=as.Date(c(date+1):(date+time),origin=origin),GBV=colSums(data.one),GBVUpper=colSums(data.two),GBVLower=colSums(data.three))
 }
 
-emea=create.region.frame("EAN - Europe",maxdate,d,emea.nbns,emea.nbnsupper,emea.nbnsupper)
-amer=create.region.frame("EAN Americas",maxdate,d,amer.nbns,amer.nbnsupper,amer.nbnsupper)
-apac =create.region.frame("EAN - APAC",maxdate,d,apac.nbns,apac.nbnsupper,apac.nbnsupper)
+emea=create.region.frame("EAN - Europe",maxdate,d,emea.nbns,emea.nbnsupper,emea.nbnslower)
+amer=create.region.frame("EAN Americas",maxdate,d,amer.nbns,amer.nbnsupper,amer.nbnslower)
+apac =create.region.frame("EAN - APAC",maxdate,d,apac.nbns,apac.nbnsupper,apac.nbnslower)
 
 nbns<-rbind(emea,amer,apac)
 nbns$StayType<-"Not Booked Not Stayed"
