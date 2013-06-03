@@ -322,16 +322,14 @@
 ## Label stay or book not stay
 	staydata.sort$StayType<-0
 	staydata.sort$StayType <- ifelse(staydata.sort$Date <= maxdate, "Stayed", "Booked Not Stayed" )
-	##staydata.sort$StayType<-sapply(1:nrow(staydata.sort),function(x) if (staydata.sort$Date[x]<=maxdate) {staydata.sort$StayType[x]="Stayed"} else {staydata.sort$StayType[x]="Booked Not Stayed"})
-#staydata.sort$StayType
-# Calculate Agency Margin
+## Calculate Agency Margin
 	staydata.sort$Monthtrunc<-format(staydata.sort$Date,format="%b")
 	staydata.sort2<-merge(staydata.sort,PL.assump, by.x = c("Monthtrunc","REGION"), by.y=c("Month","Region"),all.x=T)
 	staydata.sort2$Marginnew <- ifelse(staydata.sort2$BMODEL == "Agency", 	staydata.sort2$GBV*staydata.sort2$AgencyRM,staydata.sort2$MARGIN)
 
 ## Calculate book not stay minus cancel rate
-	staydata.sort2$GBVcan <- 	ifelse(staydata.sort2$StayType=="Booked Not Stayed",staydata.sort2$GBV*.845,staydata.sort2$GBV)
-staydata.sort2$Margincan <-  	ifelse(staydata.sort2$StayType=="Booked Not Stayed",staydata.sort2$Marginnew*.845,staydata.sort2$Marginnew)
+	staydata.sort2$GBVcan <-ifelse(staydata.sort2$StayType=="Booked Not Stayed",staydata.sort2$GBV*.845,staydata.sort2$GBV)
+	staydata.sort2$Margincan <-ifelse(staydata.sort2$StayType=="Booked Not 	Stayed",staydata.sort2$Marginnew*.845,staydata.sort2$Marginnew)
 
 
 ## Calc margin for nbns
