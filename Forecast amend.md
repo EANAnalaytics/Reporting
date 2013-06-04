@@ -62,13 +62,6 @@
 	data<-summaryBy(GBV~REGION+Date, data=data, FUN=sum)
 	n<-(nrow(data)/3)-1
 
-## Number of days to predict
-	d<-200
-
-## Add empty rows to dataframe for next 90 days
-	newrows<-data.frame(REGION=c(rep("EAN Americas",d),rep("EAN - APAC",d),rep("EAN - Europe",d)),Date=as.Date(rep((max(data$Date)+1):(max(data$Date)+d),3),origin="1970-01-01"),GBV.sum=rep(0,(d*3)))
-	data <- rbind(newrows,data)
-
 ## Create binary variables for seasonality
 	data$weekday<-weekdays(data$Date)
 	data$month<-months(data$Date)
